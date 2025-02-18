@@ -8,14 +8,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Repeat2, Users, Heart } from "lucide-react";
 
 interface Account {
   id: string;
   username: string;
-  status: "normal" | "suspicious" | "bot";
   activityLevel: number;
   lastActive: string;
   riskScore: number;
@@ -42,32 +40,11 @@ const generateUsername = (): string => {
 };
 
 const generateRandomAccount = (): Account => {
-  const statuses: Account["status"][] = ["normal", "suspicious", "bot"];
-  const status = statuses[Math.floor(Math.random() * statuses.length)];
-  
-  // Generate more realistic numbers based on account status
-  const isBot = status === "bot";
-  const isSuspicious = status === "suspicious";
-  
-  const followers = Math.floor(
-    Math.random() * (isBot ? 100000 : isSuspicious ? 10000 : 1000)
-  );
-  
-  const following = Math.floor(
-    Math.random() * (isBot ? 7500 : isSuspicious ? 5000 : 1000)
-  );
-  
-  const tweets = Math.floor(
-    Math.random() * (isBot ? 50000 : isSuspicious ? 10000 : 5000)
-  );
-  
-  const retweets = Math.floor(
-    Math.random() * (isBot ? 30000 : isSuspicious ? 5000 : 1000)
-  );
-  
-  const likes = Math.floor(
-    Math.random() * (isBot ? 100000 : isSuspicious ? 20000 : 5000)
-  );
+  const followers = Math.floor(Math.random() * 10000);
+  const following = Math.floor(Math.random() * 5000);
+  const tweets = Math.floor(Math.random() * 5000);
+  const retweets = Math.floor(Math.random() * 1000);
+  const likes = Math.floor(Math.random() * 5000);
 
   // Generate a random join date within the last year
   const joinDate = new Date();
@@ -76,7 +53,6 @@ const generateRandomAccount = (): Account => {
   return {
     id: `acc_${Math.random().toString(36).substr(2, 9)}`,
     username: generateUsername(),
-    status,
     activityLevel: Math.floor(Math.random() * 100),
     lastActive: new Date().toISOString(),
     riskScore: Math.floor(Math.random() * 100),
@@ -124,7 +100,6 @@ export const AccountsTable = () => {
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               <TableHead>Account Info</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Engagement</TableHead>
               <TableHead>Activity</TableHead>
               <TableHead>Risk Score</TableHead>
@@ -148,19 +123,6 @@ export const AccountsTable = () => {
                       <span>{formatNumber(account.following)} following</span>
                     </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "capitalize",
-                      account.status === "normal" && "border-emerald-500 text-emerald-500",
-                      account.status === "suspicious" && "border-amber-500 text-amber-500",
-                      account.status === "bot" && "border-rose-500 text-rose-500"
-                    )}
-                  >
-                    {account.status}
-                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="space-y-2 text-sm">

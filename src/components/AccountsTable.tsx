@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -86,27 +87,31 @@ export const AccountsTable = () => {
   useEffect(() => {
     setAccounts(Array.from({ length: 10 }, generateRandomAccount));
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const newAccount = generateRandomAccount();
       
-      const detectionResult = BotDetectionService.analyzeAccount(newAccount);
-      
-      if (detectionResult.isBot) {
-        setDetectedBots(current => [...current, {
-          id: newAccount.id,
-          username: newAccount.username,
-          confidence: detectionResult.confidence,
-          reason: detectionResult.reason
-        }]);
+      try {
+        const detectionResult = await BotDetectionService.analyzeAccount(newAccount);
         
-        toast({
-          title: "Bot Account Detected",
-          description: `@${newAccount.username} has been flagged as a potential bot.`,
-          duration: 5000,
-        });
-      }
+        if (detectionResult.isBot) {
+          setDetectedBots(current => [...current, {
+            id: newAccount.id,
+            username: newAccount.username,
+            confidence: detectionResult.confidence,
+            reason: detectionResult.reason
+          }]);
+          
+          toast({
+            title: "Bot Account Detected",
+            description: `@${newAccount.username} has been flagged as a potential bot.`,
+            duration: 5000,
+          });
+        }
 
-      setAccounts(currentAccounts => [newAccount, ...currentAccounts].slice(0, MAX_ACCOUNTS));
+        setAccounts(currentAccounts => [newAccount, ...currentAccounts].slice(0, MAX_ACCOUNTS));
+      } catch (error) {
+        console.error('Error in bot detection:', error);
+      }
     }, 5000);
 
     return () => clearInterval(interval);

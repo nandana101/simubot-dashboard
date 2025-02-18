@@ -84,19 +84,12 @@ export const AccountsTable = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const initializeBotDetection = async () => {
-      await BotDetectionService.initialize();
-    };
-    initializeBotDetection();
-  }, []);
-
-  useEffect(() => {
     setAccounts(Array.from({ length: 10 }, generateRandomAccount));
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const newAccount = generateRandomAccount();
       
-      const detectionResult = await BotDetectionService.analyzeAccount(newAccount);
+      const detectionResult = BotDetectionService.analyzeAccount(newAccount);
       
       if (detectionResult.isBot) {
         setDetectedBots(current => [...current, {

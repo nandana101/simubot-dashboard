@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -47,13 +46,6 @@ const generateUsername = (): string => {
   return `${firstName}${randomNum}`;
 };
 
-const determineBotCategory = (riskScore: number, activityLevel: number): Account['botCategory'] => {
-  if (riskScore < 25) return 'normal';
-  if (riskScore < 50) return 'satisfactory';
-  if (riskScore < 75) return 'disruptive';
-  return 'problematic';
-};
-
 const generateRandomAccount = (): Account => {
   const followers = Math.floor(Math.random() * 10000);
   const following = Math.floor(Math.random() * 5000);
@@ -65,7 +57,6 @@ const generateRandomAccount = (): Account => {
   const urls = Math.floor(Math.random() * 150);
   const mentions = Math.floor(Math.random() * 300);
   const intertime = Math.floor(Math.random() * 24);
-  const riskScore = Math.floor(Math.random() * 100);
   const activityLevel = Math.floor(Math.random() * 100);
 
   const joinDate = new Date();
@@ -76,7 +67,6 @@ const generateRandomAccount = (): Account => {
     username: generateUsername(),
     activityLevel,
     lastActive: new Date().toISOString(),
-    riskScore,
     followers,
     following,
     tweets,
@@ -88,8 +78,7 @@ const generateRandomAccount = (): Account => {
     urls,
     mentions,
     intertime,
-    isCurrentlyActive: Math.random() > 0.7,
-    botCategory: determineBotCategory(riskScore, activityLevel)
+    isCurrentlyActive: Math.random() > 0.7
   };
 };
 
@@ -104,7 +93,9 @@ const formatNumber = (num: number): string => {
 export const AccountsTable = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [detectedBots, setDetectedBots] = useState<any[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+  const [totalAccounts, setTotalAccounts] = useState(0);
+  const [botDetectionRate, setBotDetectionRate] = useState(0);
+  const [avgActivityLevel, setAvgActivityLevel] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -117,24 +108,30 @@ export const AccountsTable = () => {
         const detectionResult = await BotDetectionService.analyzeAccount(newAccount);
         
         if (detectionResult.isBot) {
+          let category: 'normal' | 'disruptive' | 'satisfactory' | 'problematic';
+          const confidence = detectionResult.confidence;
+          
+          if (confidence < 0.4) category = 'satisfactory';
+          else if (confidence < 0.7) category = 'disruptive';
+          else category = 'problematic';
+
           setDetectedBots(current => [...current, {
             id: newAccount.id,
             username: newAccount.username,
             confidence: detectionResult.confidence,
             reason: detectionResult.reason,
-            category: newAccount.botCategory
+            category
           }]);
           
           toast({
             title: "Bot Account Detected",
-            description: `@${newAccount.username} has been flagged as a potential ${newAccount.botCategory} bot.`,
+            description: `@${newAccount.username} has been flagged as a ${category} bot.`,
             duration: 5000,
           });
         }
 
-        // Update random account activities
         setAccounts(currentAccounts => {
-          return currentAccounts.map(account => ({
+          const updatedAccounts = currentAccounts.map(account => ({
             ...account,
             activityLevel: Math.floor(Math.random() * 100),
             isCurrentlyActive: Math.random() > 0.7,
@@ -144,27 +141,32 @@ export const AccountsTable = () => {
             replies: account.replies + Math.floor(Math.random() * 3),
             mentions: account.mentions + Math.floor(Math.random() * 2)
           }));
+          return [newAccount, ...updatedAccounts].slice(0, MAX_ACCOUNTS);
         });
 
-        setAccounts(currentAccounts => [newAccount, ...currentAccounts].slice(0, MAX_ACCOUNTS));
+        setTotalAccounts(prev => prev + 1);
+        setBotDetectionRate(current => {
+          const totalBots = detectedBots.length;
+          const total = totalAccounts + 1;
+          return (totalBots / total) * 100;
+        });
+        setAvgActivityLevel(current => {
+          const activities = accounts.map(a => a.activityLevel);
+          return activities.reduce((a, b) => a + b, 0) / activities.length;
+        });
+
       } catch (error) {
         console.error('Error in bot detection:', error);
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [toast]);
-
-  const filteredAccounts = accounts.filter(account => {
-    if (filter === "all") return true;
-    return account.botCategory === filter;
-  });
+  }, [toast, totalAccounts, accounts.length]);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Account List</h3>
-        <BotFilterSelect onFilterChange={setFilter} />
+        <h3 className="text-lg font-medium">Recent Activity</h3>
       </div>
 
       <div className="rounded-lg border bg-card">
@@ -175,11 +177,10 @@ export const AccountsTable = () => {
                 <TableHead>Account Info</TableHead>
                 <TableHead>Engagement</TableHead>
                 <TableHead>Activity Metrics</TableHead>
-                <TableHead>Risk Score</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAccounts.map((account) => (
+              {accounts.map((account) => (
                 <TableRow key={account.id} className="hover:bg-muted/50">
                   <TableCell>
                     <div className="space-y-1">
@@ -243,30 +244,6 @@ export const AccountsTable = () => {
                       <div className="text-xs text-muted-foreground">
                         FF Ratio: {(account.following / (account.followers || 1)).toFixed(2)}
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-2">
-                      <div className="w-full bg-secondary rounded-full h-2">
-                        <div
-                          className={cn(
-                            "h-full rounded-full",
-                            account.riskScore < 25 && "bg-emerald-500",
-                            account.riskScore >= 25 && account.riskScore < 50 && "bg-amber-500",
-                            account.riskScore >= 50 && account.riskScore < 75 && "bg-orange-500",
-                            account.riskScore >= 75 && "bg-rose-500"
-                          )}
-                          style={{ width: `${account.riskScore}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {account.riskScore}% risk level
-                      </div>
-                      {account.botCategory && (
-                        <div className="text-xs font-medium">
-                          Category: {account.botCategory}
-                        </div>
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>

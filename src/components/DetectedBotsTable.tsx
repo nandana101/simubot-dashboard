@@ -16,6 +16,7 @@ interface DetectedBot {
   username: string;
   confidence: number;
   reason: string;
+  category: 'normal' | 'disruptive' | 'satisfactory' | 'problematic';
 }
 
 interface DetectedBotsTableProps {
@@ -49,6 +50,7 @@ export const DetectedBotsTable = ({ bots, onRemoveBot }: DetectedBotsTableProps)
         <TableHeader>
           <TableRow>
             <TableHead>Account</TableHead>
+            <TableHead>Category</TableHead>
             <TableHead>Confidence</TableHead>
             <TableHead>Reason</TableHead>
             <TableHead>Action</TableHead>
@@ -62,6 +64,17 @@ export const DetectedBotsTable = ({ bots, onRemoveBot }: DetectedBotsTableProps)
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   <span>@{bot.username}</span>
                 </div>
+              </TableCell>
+              <TableCell>
+                <span className={cn(
+                  "px-2 py-1 rounded-full text-xs font-medium",
+                  bot.category === 'normal' && "bg-emerald-100 text-emerald-700",
+                  bot.category === 'satisfactory' && "bg-amber-100 text-amber-700",
+                  bot.category === 'disruptive' && "bg-orange-100 text-orange-700",
+                  bot.category === 'problematic' && "bg-rose-100 text-rose-700"
+                )}>
+                  {bot.category}
+                </span>
               </TableCell>
               <TableCell>{(bot.confidence * 100).toFixed(1)}%</TableCell>
               <TableCell>{bot.reason}</TableCell>

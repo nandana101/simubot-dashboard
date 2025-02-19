@@ -1,0 +1,27 @@
+
+{
+  "trees": [
+    {
+      "feature": 0,
+      "threshold": 1.5,
+      "left": {"feature": 1, "threshold": 0.5, "left": 0, "right": 1},
+      "right": 1
+    }
+  ],
+  "features": [
+    "retweets",
+    "replies", 
+    "favoriteC",
+    "hashtag",
+    "url",
+    "mentions",
+    "intertime",
+    "ffratio",
+    "statuses_count",
+    "followers_count",
+    "friends_count",
+    "favourites_count",
+    "listed_count"
+  ],
+  "numClasses": 2
+}

@@ -96,6 +96,56 @@ export const AccountsTable = () => {
   const [avgActivityLevel, setAvgActivityLevel] = useState(0);
   const { toast } = useToast();
 
+  // Function to analyze account for bot behavior
+  const analyzeAccount = (account: Account) => {
+    const metrics = {
+      tweetFollowerRatio: account.tweets / (account.followers || 1),
+      followingFollowerRatio: account.following / (account.followers || 1),
+      mentionTweetRatio: account.mentions / (account.tweets || 1),
+      urlTweetRatio: account.urls / (account.tweets || 1),
+      retweetRatio: account.retweets / (account.tweets || 1),
+      interactionFrequency: account.intertime,
+    };
+
+    // Calculate bot probability based on metrics
+    let botProbability = 0;
+    let reason = '';
+
+    if (metrics.tweetFollowerRatio > 100) {
+      botProbability += 0.4;
+      reason = 'Unusually high tweet-to-follower ratio';
+    }
+    if (metrics.followingFollowerRatio > 10) {
+      botProbability += 0.3;
+      reason = 'Suspicious following-to-follower ratio';
+    }
+    if (metrics.interactionFrequency < 1) {
+      botProbability += 0.4;
+      reason = 'Extremely high posting frequency';
+    }
+    if (metrics.mentionTweetRatio > 0.8) {
+      botProbability += 0.3;
+      reason = 'Excessive mention usage';
+    }
+    if (metrics.urlTweetRatio > 0.7) {
+      botProbability += 0.3;
+      reason = 'High frequency of URL sharing';
+    }
+    if (metrics.retweetRatio > 0.9) {
+      botProbability += 0.3;
+      reason = 'Predominantly retweet behavior';
+    }
+
+    // Normalize probability to be between 0 and 1
+    botProbability = Math.min(botProbability, 1);
+
+    return {
+      isBot: botProbability > 0.3,
+      confidence: botProbability,
+      reason: reason || 'Multiple suspicious patterns detected'
+    };
+  };
+
   useEffect(() => {
     setAccounts(Array.from({ length: 10 }, generateRandomAccount));
 
@@ -103,37 +153,29 @@ export const AccountsTable = () => {
       const newAccount = generateRandomAccount();
       
       try {
-        const detectionResult = await BotDetectionService.analyzeAccount(newAccount);
+        const detectionResult = analyzeAccount(newAccount);
         
         if (detectionResult.isBot) {
           let category: 'disruptive' | 'satisfactory' | 'problematic';
           const confidence = detectionResult.confidence;
           
-          if (confidence < 0.4) category = 'satisfactory';
-          else if (confidence < 0.7) category = 'disruptive';
-          else category = 'problematic';
-
-          // Generate dynamic reason based on account metrics
-          let reason = '';
-          if (newAccount.tweets / newAccount.followers > 100) {
-            reason = 'Unusually high tweet-to-follower ratio';
-          } else if (newAccount.following / newAccount.followers > 10) {
-            reason = 'Suspicious following-to-follower ratio';
-          } else if (newAccount.intertime < 1) {
-            reason = 'Extremely high posting frequency';
-          } else if (newAccount.mentions / newAccount.tweets > 0.8) {
-            reason = 'Excessive mention usage';
+          if (confidence < 0.4) {
+            category = 'satisfactory';
+          } else if (confidence < 0.7) {
+            category = 'disruptive';
           } else {
-            reason = 'Unusual activity patterns detected';
+            category = 'problematic';
           }
 
-          setDetectedBots(current => [...current, {
+          const botAccount = {
             id: newAccount.id,
             username: newAccount.username,
             confidence: detectionResult.confidence,
-            reason,
+            reason: detectionResult.reason,
             category
-          }]);
+          };
+
+          setDetectedBots(current => [...current, botAccount]);
           
           toast({
             title: "Bot Account Detected",
@@ -142,6 +184,7 @@ export const AccountsTable = () => {
           });
         }
 
+        // Add the new account to the accounts list
         setAccounts(currentAccounts => {
           const updatedAccounts = currentAccounts.map(account => ({
             ...account,
@@ -156,6 +199,7 @@ export const AccountsTable = () => {
           return [newAccount, ...updatedAccounts].slice(0, MAX_ACCOUNTS);
         });
 
+        // Update metrics
         setTotalAccounts(prev => prev + 1);
         setBotDetectionRate(current => {
           const totalBots = detectedBots.length;

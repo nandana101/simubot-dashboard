@@ -2,15 +2,46 @@
 {
   "trees": [
     {
-      "feature": 0,
-      "threshold": 1.5,
-      "left": {"feature": 1, "threshold": 0.5, "left": 0, "right": 1},
-      "right": 1
+      "feature": 7,
+      "threshold": 1.2,
+      "left": {
+        "feature": 8,
+        "threshold": 1000,
+        "left": {
+          "feature": 2,
+          "threshold": 300,
+          "left": 0,
+          "right": 1
+        },
+        "right": 1
+      },
+      "right": {
+        "feature": 6,
+        "threshold": 8.5,
+        "left": 1,
+        "right": 0
+      }
+    },
+    {
+      "feature": 6,
+      "threshold": 10.0,
+      "left": {
+        "feature": 7,
+        "threshold": 1.5,
+        "left": 0,
+        "right": 1
+      },
+      "right": {
+        "feature": 8,
+        "threshold": 1200,
+        "left": 1,
+        "right": 0
+      }
     }
   ],
   "features": [
     "retweets",
-    "replies", 
+    "replies",
     "favoriteC",
     "hashtag",
     "url",
@@ -23,5 +54,15 @@
     "favourites_count",
     "listed_count"
   ],
-  "numClasses": 2
+  "numClasses": 2,
+  "featureImportance": {
+    "ffratio": 0.25,
+    "intertime": 0.20,
+    "statuses_count": 0.15,
+    "retweets": 0.10,
+    "mentions": 0.10,
+    "followers_count": 0.08,
+    "friends_count": 0.07,
+    "favourites_count": 0.05
+  }
 }

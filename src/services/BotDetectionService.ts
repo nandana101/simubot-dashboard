@@ -30,6 +30,7 @@ interface RandomForestModel {
   trees: TreeNode[];
   features: string[];
   numClasses: number;
+  featureImportance: { [key: string]: number };
 }
 
 export class BotDetectionService {
@@ -87,62 +88,81 @@ export class BotDetectionService {
     return this.model.features.map(feature => featureMap[feature] || 0);
   }
 
-  private static predict(features: number[]): boolean {
-    if (!this.model) {
-      return this.fallbackDetection(features);
-    }
+  private static predict(features: number[]): number {
+    if (!this.model) return 0;
 
-    try {
-      // Get predictions from all trees
-      const predictions = this.model.trees.map(tree => 
-        this.predictTree(tree, features)
-      );
+    // Get predictions from all trees
+    const predictions = this.model.trees.map(tree => 
+      this.predictTree(tree, features)
+    );
 
-      // Calculate the average prediction (for binary classification)
-      const avgPrediction = predictions.reduce((a, b) => a + b, 0) / predictions.length;
-      
-      // Use 0.5 as the threshold for binary classification
-      return avgPrediction >= 0.5;
-    } catch (error) {
-      console.error('Error during Random Forest prediction:', error);
-      return this.fallbackDetection(features);
-    }
+    // Calculate the average prediction
+    const avgPrediction = predictions.reduce((a, b) => a + b, 0) / predictions.length;
+    
+    // Return 1 for bot, 0 for genuine user
+    return avgPrediction >= 0.5 ? 1 : 0;
   }
 
-  private static fallbackDetection(features: number[]): boolean {
-    if (!this.model) return false;
-    
-    // Get feature indices for important features
-    const ffratioIndex = this.model.features.indexOf('ffratio');
-    const statusesIndex = this.model.features.indexOf('statuses_count');
-    const retweetsIndex = this.model.features.indexOf('retweets');
-    
-    // Fallback to rule-based detection
-    let botScore = 0;
-    
-    if (features[ffratioIndex] > 2) botScore += 0.3;
-    if (features[statusesIndex] < 50) botScore += 0.2;
-    if (features[retweetsIndex] / features[statusesIndex] > 0.8) botScore += 0.3;
-    
-    return botScore >= 0.5;
+  private static calculateConfidence(features: number[]): number {
+    if (!this.model) return 0;
+
+    // Calculate confidence based on feature importance and deviation from thresholds
+    let confidence = 0;
+    let totalImportance = 0;
+
+    Object.entries(this.model.featureImportance).forEach(([feature, importance]) => {
+      const featureIndex = this.model.features.indexOf(feature);
+      const featureValue = features[featureIndex];
+      
+      // Add to confidence if the feature value is significantly different from typical user patterns
+      if (feature === 'ffratio' && featureValue > 2) {
+        confidence += importance;
+      } else if (feature === 'intertime' && featureValue < 5) {
+        confidence += importance;
+      } else if (feature === 'statuses_count' && featureValue > 1000) {
+        confidence += importance;
+      }
+      
+      totalImportance += importance;
+    });
+
+    return Math.min(confidence / totalImportance, 1);
   }
 
   private static generateReason(features: number[]): string[] {
     if (!this.model) return ["Model not loaded"];
 
     const reasons: string[] = [];
-    const featureImportance = [
-      { name: 'ffratio', threshold: 2, message: "Unusual following to followers ratio" },
-      { name: 'retweets', threshold: 0.8, message: "High proportion of retweets" },
-      { name: 'intertime', threshold: 90, message: "Suspicious activity patterns" },
-      { name: 'statuses_count', threshold: 50, message: "Low number of total tweets" },
-      { name: 'mentions', threshold: 0.8, message: "Excessive use of mentions" }
+    const featureChecks = [
+      { 
+        name: 'ffratio', 
+        threshold: 2, 
+        message: "Unusual following to followers ratio",
+        index: this.model.features.indexOf('ffratio')
+      },
+      { 
+        name: 'intertime', 
+        threshold: 5, 
+        message: "Very high activity frequency",
+        index: this.model.features.indexOf('intertime')
+      },
+      { 
+        name: 'statuses_count', 
+        threshold: 1000, 
+        message: "Excessive number of tweets",
+        index: this.model.features.indexOf('statuses_count')
+      },
+      { 
+        name: 'mentions', 
+        threshold: 0.8, 
+        message: "High frequency of mentions",
+        index: this.model.features.indexOf('mentions')
+      }
     ];
 
-    featureImportance.forEach(({ name, threshold, message }) => {
-      const index = this.model!.features.indexOf(name);
-      if (index !== -1 && features[index] > threshold) {
-        reasons.push(message);
+    featureChecks.forEach(check => {
+      if (check.index !== -1 && features[check.index] > check.threshold) {
+        reasons.push(check.message);
       }
     });
 
@@ -153,12 +173,13 @@ export class BotDetectionService {
     await this.loadModel();
     
     const features = this.preprocessAccount(account);
-    const isBot = this.predict(features);
+    const prediction = this.predict(features);
+    const confidence = this.calculateConfidence(features);
     const reasons = this.generateReason(features);
     
     return {
-      isBot,
-      confidence: reasons.length > 0 ? reasons.length * 0.25 : 0.1,
+      isBot: prediction === 1,
+      confidence,
       reason: reasons.length > 0 ? reasons.join(". ") : "No suspicious patterns detected"
     };
   }

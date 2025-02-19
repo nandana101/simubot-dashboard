@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -12,14 +13,12 @@ import { MessageSquare, Repeat2, Users, Heart, Hash, Link2, AtSign, Clock } from
 import { BotDetectionService } from "@/services/BotDetectionService";
 import { DetectedBotsTable } from "@/components/DetectedBotsTable";
 import { useToast } from "@/components/ui/use-toast";
-import { BotFilterSelect } from "./BotFilterSelect";
 
 interface Account {
   id: string;
   username: string;
   activityLevel: number;
   lastActive: string;
-  riskScore: number;
   followers: number;
   following: number;
   tweets: number;
@@ -32,7 +31,6 @@ interface Account {
   mentions: number;
   intertime: number;
   isCurrentlyActive: boolean;
-  botCategory?: 'normal' | 'disruptive' | 'satisfactory' | 'problematic';
 }
 
 const FIRST_NAMES = [
@@ -108,18 +106,32 @@ export const AccountsTable = () => {
         const detectionResult = await BotDetectionService.analyzeAccount(newAccount);
         
         if (detectionResult.isBot) {
-          let category: 'normal' | 'disruptive' | 'satisfactory' | 'problematic';
+          let category: 'disruptive' | 'satisfactory' | 'problematic';
           const confidence = detectionResult.confidence;
           
           if (confidence < 0.4) category = 'satisfactory';
           else if (confidence < 0.7) category = 'disruptive';
           else category = 'problematic';
 
+          // Generate dynamic reason based on account metrics
+          let reason = '';
+          if (newAccount.tweets / newAccount.followers > 100) {
+            reason = 'Unusually high tweet-to-follower ratio';
+          } else if (newAccount.following / newAccount.followers > 10) {
+            reason = 'Suspicious following-to-follower ratio';
+          } else if (newAccount.intertime < 1) {
+            reason = 'Extremely high posting frequency';
+          } else if (newAccount.mentions / newAccount.tweets > 0.8) {
+            reason = 'Excessive mention usage';
+          } else {
+            reason = 'Unusual activity patterns detected';
+          }
+
           setDetectedBots(current => [...current, {
             id: newAccount.id,
             username: newAccount.username,
             confidence: detectionResult.confidence,
-            reason: detectionResult.reason,
+            reason,
             category
           }]);
           

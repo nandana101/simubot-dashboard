@@ -140,7 +140,7 @@ export const AccountsTable = () => {
       botProbability += 0.3;
       reasons.push('Mainly retweet behavior');
     }
-    if (metrics.accountAge < 30 && metrics.tweets > 1000) {
+    if (account.tweets > 1000 && metrics.accountAge < 30) {
       botProbability += 0.4;
       reasons.push('High activity for new account');
     }

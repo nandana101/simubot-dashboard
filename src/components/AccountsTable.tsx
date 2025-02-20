@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -45,21 +44,21 @@ const generateUsername = (): string => {
 };
 
 const generateRandomAccount = (): Account => {
-  const followers = Math.floor(Math.random() * 10000);
-  const following = Math.floor(Math.random() * 5000);
-  const tweets = Math.floor(Math.random() * 5000);
-  const retweets = Math.floor(Math.random() * 1000);
-  const likes = Math.floor(Math.random() * 5000);
-  const replies = Math.floor(Math.random() * 800);
-  const hashtags = Math.floor(Math.random() * 200);
-  const urls = Math.floor(Math.random() * 150);
-  const mentions = Math.floor(Math.random() * 300);
-  const intertime = Math.floor(Math.random() * 24);
+  const followers = Math.floor(Math.random() * 50000) + 10;
+  const following = Math.floor(Math.random() * 3000) + 5;
+  const tweets = Math.floor(Math.random() * 10000) + 20;
+  const retweets = Math.floor(Math.random() * (tweets * 0.4));
+  const likes = Math.floor(Math.random() * 8000) + 10;
+  const replies = Math.floor(Math.random() * (tweets * 0.3));
+  const hashtags = Math.floor(Math.random() * (tweets * 0.2));
+  const urls = Math.floor(Math.random() * (tweets * 0.15));
+  const mentions = Math.floor(Math.random() * (tweets * 0.25));
+  const intertime = Math.max(0.1, Math.random() * 24);
   const activityLevel = Math.floor(Math.random() * 100);
 
   const joinDate = new Date();
-  joinDate.setFullYear(joinDate.getFullYear() - Math.random());
-  
+  joinDate.setFullYear(joinDate.getFullYear() - Math.floor(Math.random() * 5));
+
   return {
     id: `acc_${Math.random().toString(36).substr(2, 9)}`,
     username: generateUsername(),
@@ -96,7 +95,6 @@ export const AccountsTable = () => {
   const [avgActivityLevel, setAvgActivityLevel] = useState(0);
   const { toast } = useToast();
 
-  // Function to analyze account for bot behavior
   const analyzeAccount = (account: Account) => {
     const metrics = {
       tweetFollowerRatio: account.tweets / (account.followers || 1),
@@ -104,52 +102,66 @@ export const AccountsTable = () => {
       mentionTweetRatio: account.mentions / (account.tweets || 1),
       urlTweetRatio: account.urls / (account.tweets || 1),
       retweetRatio: account.retweets / (account.tweets || 1),
-      interactionFrequency: account.intertime,
+      hashtagDensity: account.hashtags / (account.tweets || 1),
+      replyRate: account.replies / (account.tweets || 1),
+      avgTimeBetweenTweets: account.intertime,
+      accountAge: (new Date().getTime() - new Date(account.joinedDate).getTime()) / (1000 * 60 * 60 * 24),
+      engagementRate: (account.likes + account.retweets) / (account.tweets || 1)
     };
 
-    // Calculate bot probability based on metrics
     let botProbability = 0;
-    let reason = '';
+    let reasons: string[] = [];
 
-    if (metrics.tweetFollowerRatio > 100) {
+    if (metrics.tweetFollowerRatio > 50) {
+      botProbability += 0.3;
+      reasons.push('High tweet-to-follower ratio');
+    }
+    if (metrics.followingFollowerRatio > 2) {
+      botProbability += 0.2;
+      reasons.push('Suspicious following pattern');
+    }
+    if (metrics.avgTimeBetweenTweets < 0.5) {
       botProbability += 0.4;
-      reason = 'Unusually high tweet-to-follower ratio';
+      reasons.push('Abnormally frequent posting');
     }
-    if (metrics.followingFollowerRatio > 10) {
+    if (metrics.mentionTweetRatio > 0.6) {
+      botProbability += 0.25;
+      reasons.push('Excessive mention usage');
+    }
+    if (metrics.urlTweetRatio > 0.5) {
+      botProbability += 0.25;
+      reasons.push('High URL sharing frequency');
+    }
+    if (metrics.hashtagDensity > 0.7) {
+      botProbability += 0.2;
+      reasons.push('Abnormal hashtag usage');
+    }
+    if (metrics.retweetRatio > 0.8) {
       botProbability += 0.3;
-      reason = 'Suspicious following-to-follower ratio';
+      reasons.push('Mainly retweet behavior');
     }
-    if (metrics.interactionFrequency < 1) {
+    if (metrics.accountAge < 30 && metrics.tweets > 1000) {
       botProbability += 0.4;
-      reason = 'Extremely high posting frequency';
+      reasons.push('High activity for new account');
     }
-    if (metrics.mentionTweetRatio > 0.8) {
-      botProbability += 0.3;
-      reason = 'Excessive mention usage';
-    }
-    if (metrics.urlTweetRatio > 0.7) {
-      botProbability += 0.3;
-      reason = 'High frequency of URL sharing';
-    }
-    if (metrics.retweetRatio > 0.9) {
-      botProbability += 0.3;
-      reason = 'Predominantly retweet behavior';
+    if (metrics.engagementRate < 0.01) {
+      botProbability += 0.2;
+      reasons.push('Very low engagement rate');
     }
 
-    // Normalize probability to be between 0 and 1
     botProbability = Math.min(botProbability, 1);
 
     return {
       isBot: botProbability > 0.3,
       confidence: botProbability,
-      reason: reason || 'Multiple suspicious patterns detected'
+      reason: reasons.length > 0 ? reasons.join('; ') : 'Multiple suspicious patterns'
     };
   };
 
   useEffect(() => {
     setAccounts(Array.from({ length: 10 }, generateRandomAccount));
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const newAccount = generateRandomAccount();
       
       try {
@@ -159,9 +171,9 @@ export const AccountsTable = () => {
           let category: 'disruptive' | 'satisfactory' | 'problematic';
           const confidence = detectionResult.confidence;
           
-          if (confidence < 0.4) {
+          if (confidence < 0.45) {
             category = 'satisfactory';
-          } else if (confidence < 0.7) {
+          } else if (confidence < 0.75) {
             category = 'disruptive';
           } else {
             category = 'problematic';
@@ -178,28 +190,26 @@ export const AccountsTable = () => {
           setDetectedBots(current => [...current, botAccount]);
           
           toast({
-            title: "Bot Account Detected",
-            description: `@${newAccount.username} has been flagged as a ${category} bot.`,
+            title: `${category.charAt(0).toUpperCase() + category.slice(1)} Bot Detected`,
+            description: `@${newAccount.username} has been flagged with ${(detectionResult.confidence * 100).toFixed(1)}% confidence`,
             duration: 5000,
           });
         }
 
-        // Add the new account to the accounts list
         setAccounts(currentAccounts => {
           const updatedAccounts = currentAccounts.map(account => ({
             ...account,
-            activityLevel: Math.floor(Math.random() * 100),
+            activityLevel: Math.min(100, account.activityLevel + (Math.random() * 10 - 5)),
             isCurrentlyActive: Math.random() > 0.7,
             lastActive: new Date().toISOString(),
-            retweets: account.retweets + Math.floor(Math.random() * 5),
-            likes: account.likes + Math.floor(Math.random() * 10),
-            replies: account.replies + Math.floor(Math.random() * 3),
-            mentions: account.mentions + Math.floor(Math.random() * 2)
+            retweets: account.retweets + (Math.random() > 0.8 ? Math.floor(Math.random() * 3) : 0),
+            likes: account.likes + (Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0),
+            replies: account.replies + (Math.random() > 0.9 ? 1 : 0),
+            mentions: account.mentions + (Math.random() > 0.85 ? 1 : 0)
           }));
           return [newAccount, ...updatedAccounts].slice(0, MAX_ACCOUNTS);
         });
 
-        // Update metrics
         setTotalAccounts(prev => prev + 1);
         setBotDetectionRate(current => {
           const totalBots = detectedBots.length;
@@ -214,7 +224,7 @@ export const AccountsTable = () => {
       } catch (error) {
         console.error('Error in bot detection:', error);
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [toast, totalAccounts, accounts.length]);
